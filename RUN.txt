@@ -1,0 +1,29 @@
+Customer Monitoring System — quick start
+========================================
+
+1) Python backend (from this folder)
+   python3 -m venv .venv
+   source .venv/bin/activate          # Windows: .venv\Scripts\activate
+   pip install -r requirements.txt
+   cp .env.example .env             # optional; defaults work for local dev
+   python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+   API docs: http://127.0.0.1:8000/docs
+
+2) Frontend (second terminal)
+   cd frontend
+   npm install
+   npm run dev
+
+   Open http://127.0.0.1:5173 — Vite proxies /api to the backend.
+
+3) One command (API in background + UI)
+   bash scripts/dev.sh
+
+4) Tests
+   pytest tests/ -v
+
+Notes
+-----
+- If XGBoost or transformers cannot load, the API falls back to demo/heuristic models and keyword NLP so you can develop without GPU or full installs.
+- For production training (CSV upload to /api/v1/train/*), install full requirements and place artifacts under models/artifacts/.

@@ -1,0 +1,181 @@
+# ── Namespace ──────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: customer-monitoring
+
+---
+# ── ConfigMap ──────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: customer-monitoring
+data:
+  APP_NAME: "Customer Monitoring System"
+  DEBUG: "false"
+  XGB_N_ESTIMATORS: "300"
+  XGB_MAX_DEPTH: "6"
+  CHURN_THRESHOLD: "0.5"
+  ANOMALY_CONTAMINATION: "0.05"
+  MODEL_DIR: "/app/models/artifacts"
+
+---
+# ── Secret (base64-encoded values) ────────────────────────────────────────────
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: customer-monitoring
+type: Opaque
+stringData:
+  SECRET_KEY: "replace-with-secure-secret"
+  DATABASE_URL: "postgresql+asyncpg://user:pass@postgres-svc:5432/customer_monitoring"
+  MLFLOW_TRACKING_URI: "http://mlflow-svc:5000"
+
+---
+# ── PersistentVolumeClaim (model artifacts) ───────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-artifacts-pvc
+  namespace: customer-monitoring
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+# ── Deployment ─────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customer-monitoring-api
+  namespace: customer-monitoring
+  labels:
+    app: customer-monitoring-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: customer-monitoring-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: customer-monitoring-api
+    spec:
+      containers:
+        - name: api
+          image: yourdockerhub/customer-monitoring-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          volumeMounts:
+            - name: model-artifacts
+              mountPath: /app/models/artifacts
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: model-artifacts
+          persistentVolumeClaim:
+            claimName: model-artifacts-pvc
+
+---
+# ── Service ────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: customer-monitoring-svc
+  namespace: customer-monitoring
+spec:
+  selector:
+    app: customer-monitoring-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: ClusterIP
+
+---
+# ── Ingress ────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: customer-monitoring-ingress
+  namespace: customer-monitoring
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - api.yourcompany.com
+      secretName: tls-secret
+  rules:
+    - host: api.yourcompany.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: customer-monitoring-svc
+                port:
+                  number: 80
+
+---
+# ── HorizontalPodAutoscaler ────────────────────────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: customer-monitoring-hpa
+  namespace: customer-monitoring
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: customer-monitoring-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
