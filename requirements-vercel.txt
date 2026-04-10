@@ -1,0 +1,13 @@
+flask
+flask-cors
+fastapi
+uvicorn
+scikit-learn
+numpy
+pandas
+joblib
+python-dotenv
+streamlit
+requests
+pydantic
+python-multipart
