@@ -9,3 +9,6 @@ venv/
 .DS_Store
 *.csv
 *.ipynb_checkpoints
+frontend/node_modules/
+node_modules/
+*.node
