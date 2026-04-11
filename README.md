@@ -3,7 +3,7 @@ title: ML Project
 emoji: 🤖
 colorFrom: blue
 colorTo: purple
-sdk: streamlet
+sdk: streamlit
 sdk_version: 1.55.0
 app_file: streamlit_app.py
 pinned: false
