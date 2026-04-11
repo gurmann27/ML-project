@@ -1,3 +1,13 @@
+---
+title: ML Project
+emoji: 🤖
+colorFrom: blue
+colorTo: purple
+sdk: streamlet
+sdk_version: 1.55.0
+app_file: streamlit_app.py
+pinned: false
+---
 # 🧠 Customer Monitoring System — Backend
 
 A production-grade ML backend for monitoring customer health, predicting churn, detecting anomalies, and analyzing sentiment — powered by **XGBoost** (classification) and **Transformer NLP**, built with **FastAPI**.
